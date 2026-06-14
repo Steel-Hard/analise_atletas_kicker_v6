@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Painel de Verificação · Análise de Atletas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0e13;
+    --surface: #121922;
+    --surface-2: #1a2330;
+    --border: #263241;
+    --text: #e7edf3;
+    --text-muted: #7e8fa1;
+    --brand: #5eead4;
+    --alta: #4ade80;
+    --queda: #f87171;
+    --medio: #94a3b8;
+    --anomalia: #fbbf24;
+    --radius: 10px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, .num {
+    font-family: 'Space Grotesk', sans-serif;
+  }
+
+  .mono { font-family: 'JetBrains Mono', monospace; }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 28px;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  header .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  header .brand .dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--brand);
+    box-shadow: 0 0 12px var(--brand);
+  }
+
+  header h1 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: 0.2px;
+  }
+
+  header .sub {
+    color: var(--text-muted);
+    font-size: 13px;
+    margin-top: 2px;
+  }
+
+  #login-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  #login-box input {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    color: var(--text);
+    font-size: 13px;
+    width: 110px;
+  }
+
+  #login-box input:focus { outline: 1px solid var(--brand); }
+
+  button {
+    background: var(--brand);
+    color: #08151a;
+    border: none;
+    border-radius: 6px;
+    padding: 9px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: opacity .15s ease;
+  }
+  button:hover { opacity: 0.85; }
+  button.secondary {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  #status-pill {
+    font-size: 12px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+  }
+  #status-pill.ok { color: var(--alta); border-color: var(--alta); }
+  #status-pill.err { color: var(--queda); border-color: var(--queda); }
+
+  main {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 24px 28px 60px;
+  }
+
+  .grid-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+  }
+
+  .card .label {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 6px;
+  }
+
+  .card .num {
+    font-size: 28px;
+    font-weight: 700;
+  }
+
+  .card .num.alta { color: var(--alta); }
+  .card .num.queda { color: var(--queda); }
+  .card .num.anomalia { color: var(--anomalia); }
+
+  section.panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    margin-bottom: 22px;
+  }
+
+  section.panel h2 {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 0 0 4px 0;
+  }
+
+  section.panel .desc {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin: 0 0 16px 0;
+    line-height: 1.5;
+  }
+
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  select, input[type=number] {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    color: var(--text);
+    font-size: 13px;
+    font-family: inherit;
+  }
+
+  select[multiple] {
+    min-height: 110px;
+    min-width: 220px;
+  }
+
+  .chart-wrap {
+    position: relative;
+  }
+  .chart-wrap.small { height: 260px; }
+  .chart-wrap.medium { height: 340px; }
+  .chart-wrap.large { height: 420px; }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 22px;
+  }
+  @media (max-width: 860px) {
+    .two-col { grid-template-columns: 1fr; }
+  }
+
+  .empty-state {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+    padding: 30px 10px;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+  }
+
+  .legend-row {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 10px;
+  }
+  .legend-row span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend-row .swatch {
+    width: 10px; height: 10px; border-radius: 2px; display: inline-block;
+  }
+
+  #locked-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,14,19,0.92);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    flex-direction: column;
+    gap: 14px;
+    text-align: center;
+  }
+  #locked-overlay h2 { font-size: 18px; margin: 0; }
+  #locked-overlay p { color: var(--text-muted); font-size: 13px; max-width: 360px; margin: 0; }
+  #locked-overlay .form {
+    display: flex; gap: 8px; margin-top: 8px;
+  }
+  #locked-overlay input {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-size: 13px;
+    width: 130px;
+  }
+  #locked-error { color: var(--queda); font-size: 12px; min-height: 16px; }
+</style>
+</head>
+<body>
+
+<div id="locked-overlay">
+  <div class="brand"><span class="dot"></span><h1>Painel de Verificação — Análise de Atletas</h1></div>
+  <p>Painel de QA para validar visualmente a pipeline de Machine Learning (Isolation Forest + Z-Score) e o cálculo de comparação entre atletas. Faça login para continuar.</p>
+  <div class="form">
+    <input id="locked-user" placeholder="usuário" value="admin" autocomplete="username" />
+    <input id="locked-pass" placeholder="senha" type="password" value="admin" autocomplete="current-password" />
+    <button onclick="doLogin()">Entrar</button>
+  </div>
+  <div id="locked-error"></div>
+</div>
+
+<header>
+  <div>
+    <div class="brand"><span class="dot"></span><h1>Painel de Verificação — Análise de Atletas</h1></div>
+    <div class="sub">Radar · Barras · Histórico (ponto) — validação visual da pipeline IF + Z-Score</div>
+  </div>
+  <div id="login-box">
+    <span id="status-pill">verificando...</span>
+    <button class="secondary" onclick="loadAll()">Atualizar dados</button>
+  </div>
+</header>
+
+<main>
+
+  <div class="grid-stats" id="stat-cards">
+    <!-- preenchido via JS -->
+  </div>
+
+  <div class="two-col">
+    <section class="panel">
+      <h2>Distribuição de Classificação das Sessões</h2>
+      <p class="desc">
+        Resultado de <span class="mono">classificar_sessao()</span>: combina o Isolation Forest
+        (gatilho de anomalia) com o Z-Score Composto (direção). Sessões só entram em
+        "Alta" ou "Queda" quando o IF marcou <span class="mono">if_anomalia = True</span>
+        <strong>e</strong> o Z-Score Composto passa do limiar (±1.5).
+      </p>
+      <div class="chart-wrap small"><canvas id="chart-classificacao"></canvas></div>
+    </section>
+
+    <section class="panel">
+      <h2>Anomalias por Atleta (Isolation Forest)</h2>
+      <p class="desc">
+        Quantidade de sessões marcadas como anômalas (<span class="mono">if_label = -1</span>)
+        por atleta. Serve para checar se o modelo treinado por atleta está
+        sinalizando uma proporção plausível de anomalias (esperado ≈ contamination).
+      </p>
+      <div class="chart-wrap small"><canvas id="chart-anomalias-atleta"></canvas></div>
+    </section>
+  </div>
+
+  <section class="panel">
+    <h2>Comparação de Perfis (Radar)</h2>
+    <p class="desc">
+      Perfil = média dos valores brutos de cada atleta, padronizada
+      <strong>globalmente</strong> (entre atletas). Cada eixo mostra quantos desvios-padrão
+      o atleta está acima/abaixo da média do elenco naquela métrica. Se este radar
+      estiver "achatado" (tudo perto de 0 para todos), o cálculo de perfil voltou a
+      ficar errado — selecione 2 a 4 atletas para comparar.
+    </p>
+    <div class="controls">
+      <select id="select-radar-atletas" multiple></select>
+      <button onclick="renderRadar()">Comparar atletas selecionados</button>
+    </div>
+    <div class="chart-wrap large"><canvas id="chart-radar"></canvas></div>
+  </section>
+
+  <div class="two-col">
+    <section class="panel">
+      <h2>Histórico do IF Score (Ponto)</h2>
+      <p class="desc">
+        Score do Isolation Forest ao longo do tempo para o atleta selecionado.
+        Quanto mais negativo, mais anômala a sessão. Pontos em
+        <span style="color:var(--anomalia)">âmbar</span> foram marcados como anomalia
+        (<span class="mono">if_anomalia = True</span>).
+      </p>
+      <div class="controls">
+        <select id="select-historico-atleta"></select>
+      </div>
+      <div class="chart-wrap medium"><canvas id="chart-historico"></canvas></div>
+    </section>
+
+    <section class="panel">
+      <h2>Sugestão de Substitutos (Similaridade)</h2>
+      <p class="desc">
+        Similaridade combinada (40% distância euclidiana + 60% distância de cosseno)
+        entre o perfil do atleta de referência e os demais. Os valores devem variar
+        entre candidatos — se todos derem exatamente o mesmo número, o cálculo de
+        perfil está degenerado.
+      </p>
+      <div class="controls">
+        <select id="select-similaridade-atleta"></select>
+        <input type="number" id="input-top-n" value="5" min="1" max="15" style="width:60px" />
+        <button onclick="renderSimilaridade()">Buscar substitutos</button>
+      </div>
+      <div class="chart-wrap medium"><canvas id="chart-similaridade"></canvas></div>
+    </section>
+  </div>
+
+  <section class="panel">
+    <h2>Atletas</h2>
+    <p class="desc">Visão geral por atleta: total de sessões, anomalias detectadas e status da última sessão classificada.</p>
+    <div id="tabela-atletas" class="chart-wrap"></div>
+  </section>
+
+</main>
+
+<script>
+const API_BASE = '/api/v1';
+let TOKEN = null;
+let ATLETAS = [];
+let charts = {};
+
+const COLOR_CLASS = {
+  'Alta de Desempenho': '#4ade80',
+  'Desempenho Médio': '#94a3b8',
+  'Queda de Desempenho': '#f87171',
+};
+
+const RADAR_PALETTE = ['#5eead4', '#fbbf24', '#f87171', '#a78bfa', '#60a5fa'];
+
+const FEATURES_RADAR_DEFAULT = [
+  "Distance (m)", "Sprint Distance (m)", "Top Speed (kph)",
+  "Accelerations", "Decelerations", "High Intensity Running (m)"
+];
+
+function setStatus(text, kind) {
+  const el = document.getElementById('status-pill');
+  el.textContent = text;
+  el.className = kind ? kind : '';
+}
+
+async function api(path, options = {}) {
+  const headers = Object.assign({}, options.headers || {});
+  if (TOKEN) headers['Authorization'] = `Bearer ${TOKEN}`;
+  if (options.body && !(options.body instanceof URLSearchParams)) {
+    headers['Content-Type'] = 'application/json';
+  }
+  const resp = await fetch(API_BASE + path, Object.assign({}, options, { headers }));
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+    throw new Error(err.detail || `Erro ${resp.status}`);
+  }
+  return resp.json();
+}
+
+async function doLogin() {
+  const user = document.getElementById('locked-user').value;
+  const pass = document.getElementById('locked-pass').value;
+  const errEl = document.getElementById('locked-error');
+  errEl.textContent = '';
+  try {
+    const body = new URLSearchParams();
+    body.set('username', user);
+    body.set('password', pass);
+    const resp = await fetch(API_BASE + '/auth/login', { method: 'POST', body });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.detail || 'Falha no login');
+    }
+    const data = await resp.json();
+    TOKEN = data.access_token;
+    document.getElementById('locked-overlay').style.display = 'none';
+    setStatus('autenticado', 'ok');
+    loadAll();
+  } catch (e) {
+    errEl.textContent = e.message;
+  }
+}
+
+function destroyChart(id) {
+  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+}
+
+function baseChartOptions(extra = {}) {
+  return Object.assign({
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { labels: { color: '#e7edf3', font: { family: 'Inter' } } },
+      tooltip: { titleFont: { family: 'Inter' }, bodyFont: { family: 'Inter' } }
+    },
+  }, extra);
+}
+
+function gridColor() { return 'rgba(255,255,255,0.06)'; }
+function tickColor() { return '#7e8fa1'; }
+
+// ---------- Stat cards ----------
+function renderStatCards(stats) {
+  const cards = [
+    { label: 'Atletas', value: stats.total_atletas, cls: '' },
+    { label: 'Sessões', value: stats.total_sessoes, cls: '' },
+    { label: 'Alta de Desempenho', value: stats.altas_desempenho, cls: 'alta' },
+    { label: 'Desempenho Médio', value: stats.desempenho_medio, cls: '' },
+    { label: 'Queda de Desempenho', value: stats.quedas_desempenho, cls: 'queda' },
+    { label: 'Anomalias (IF)', value: stats.total_anomalias, cls: 'anomalia' },
+  ];
+  document.getElementById('stat-cards').innerHTML = cards.map(c => `
+    <div class="card">
+      <div class="label">${c.label}</div>
+      <div class="num ${c.cls}">${c.value}</div>
+    </div>
+  `).join('');
+}
+
+// ---------- Classification distribution chart ----------
+function renderClassificacaoChart(stats) {
+  destroyChart('classificacao');
+  const ctx = document.getElementById('chart-classificacao');
+  const labels = ['Alta de Desempenho', 'Desempenho Médio', 'Queda de Desempenho'];
+  const data = [stats.altas_desempenho, stats.desempenho_medio, stats.quedas_desempenho];
+  charts.classificacao = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        data,
+        backgroundColor: labels.map(l => COLOR_CLASS[l]),
+        borderRadius: 6,
+      }]
+    },
+    options: baseChartOptions({
+      indexAxis: 'y',
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: tickColor() }, grid: { color: gridColor() }, beginAtZero: true },
+        y: { ticks: { color: tickColor() }, grid: { display: false } }
+      }
+    })
+  });
+}
+
+// ---------- Anomalies per athlete chart ----------
+function renderAnomaliasAtletaChart(atletas) {
+  destroyChart('anomalias');
+  const ordenados = [...atletas].sort((a, b) => b.anomalies_count - a.anomalies_count).slice(0, 12);
+  const ctx = document.getElementById('chart-anomalias-atleta');
+  charts.anomalias = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ordenados.map(a => a.athlete_name || a.athlete_id),
+      datasets: [{
+        label: 'Sessões anômalas',
+        data: ordenados.map(a => a.anomalies_count),
+        backgroundColor: '#fbbf24',
+        borderRadius: 5,
+      }]
+    },
+    options: baseChartOptions({
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: tickColor(), maxRotation: 60, minRotation: 40 }, grid: { display: false } },
+        y: { ticks: { color: tickColor(), precision: 0 }, grid: { color: gridColor() }, beginAtZero: true }
+      }
+    })
+  });
+}
+
+// ---------- Tabela de atletas ----------
+function renderTabelaAtletas(atletas) {
+  if (!atletas.length) {
+    document.getElementById('tabela-atletas').innerHTML = '<div class="empty-state">Nenhum atleta encontrado. Faça o upload de uma planilha em /api/v1/upload.</div>';
+    return;
+  }
+  const rows = atletas.map(a => `
+    <tr>
+      <td>${a.athlete_name || '—'}</td>
+      <td class="mono">${a.athlete_id}</td>
+      <td>${a.total_sessions}</td>
+      <td>${a.anomalies_count}</td>
+      <td style="color:${COLOR_CLASS[a.performance_status] || 'var(--text-muted)'}">${a.performance_status}</td>
+    </tr>
+  `).join('');
+  document.getElementById('tabela-atletas').innerHTML = `
+    <table style="width:100%; border-collapse:collapse; font-size:13px;">
+      <thead>
+        <tr style="text-align:left; color:var(--text-muted); border-bottom:1px solid var(--border)">
+          <th style="padding:8px 6px;">Nome</th>
+          <th style="padding:8px 6px;">ID</th>
+          <th style="padding:8px 6px;">Sessões</th>
+          <th style="padding:8px 6px;">Anomalias</th>
+          <th style="padding:8px 6px;">Última Classificação</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+// ---------- Selects ----------
+function populateSelects(atletas) {
+  const radarSelect = document.getElementById('select-radar-atletas');
+  const histSelect = document.getElementById('select-historico-atleta');
+  const simSelect = document.getElementById('select-similaridade-atleta');
+
+  const opts = atletas.map(a => `<option value="${a.athlete_id}">${a.athlete_name || a.athlete_id} (${a.athlete_id})</option>`).join('');
+  radarSelect.innerHTML = opts;
+  histSelect.innerHTML = opts;
+  simSelect.innerHTML = opts;
+
+  // Pré-seleciona até 3 atletas no radar para já mostrar algo ao carregar
+  Array.from(radarSelect.options).slice(0, 3).forEach(o => o.selected = true);
+}
+
+// ---------- Radar ----------
+async function renderRadar() {
+  const select = document.getElementById('select-radar-atletas');
+  const ids = Array.from(select.selectedOptions).map(o => o.value);
+  destroyChart('radar');
+  const ctx = document.getElementById('chart-radar');
+
+  if (ids.length === 0) {
+    destroyChart('radar');
+    return;
+  }
+
+  try {
+    const data = await api('/dashboard/radar', {
+      method: 'POST',
+      body: JSON.stringify({ athlete_ids: ids, features: FEATURES_RADAR_DEFAULT })
+    });
+
+    charts.radar = new Chart(ctx, {
+      type: 'radar',
+      data: {
+        labels: data.labels,
+        datasets: data.datasets.map((d, i) => ({
+          label: d.label,
+          data: d.data,
+          borderColor: RADAR_PALETTE[i % RADAR_PALETTE.length],
+          backgroundColor: RADAR_PALETTE[i % RADAR_PALETTE.length] + '33',
+          pointBackgroundColor: RADAR_PALETTE[i % RADAR_PALETTE.length],
+          borderWidth: 2,
+        }))
+      },
+      options: baseChartOptions({
+        scales: {
+          r: {
+            angleLines: { color: gridColor() },
+            grid: { color: gridColor() },
+            pointLabels: { color: '#e7edf3', font: { size: 11 } },
+            ticks: { color: tickColor(), backdropColor: 'transparent' },
+            suggestedMin: -2.5,
+            suggestedMax: 2.5,
+          }
+        }
+      })
+    });
+  } catch (e) {
+    showEmptyChart('chart-radar', e.message);
+  }
+}
+
+// ---------- Histórico (ponto) ----------
+async function renderHistorico() {
+  const select = document.getElementById('select-historico-atleta');
+  const athleteId = select.value;
+  if (!athleteId) return;
+  destroyChart('historico');
+  const ctx = document.getElementById('chart-historico');
+
+  try {
+    const data = await api(`/dashboard/historico/${athleteId}`);
+
+    charts.historico = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: data.datas.map(d => d.slice(0, 10)),
+        datasets: [{
+          label: 'IF Score',
+          data: data.valores,
+          borderColor: '#5eead4',
+          backgroundColor: 'rgba(94,234,212,0.1)',
+          pointBackgroundColor: data.anomalias.map(a => a ? '#fbbf24' : '#5eead4'),
+          pointBorderColor: data.anomalias.map(a => a ? '#fbbf24' : '#5eead4'),
+          pointRadius: data.anomalias.map(a => a ? 6 : 3),
+          tension: 0.25,
+          fill: true,
+        }]
+      },
+      options: baseChartOptions({
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: tickColor(), maxRotation: 60, minRotation: 40 }, grid: { display: false } },
+          y: { ticks: { color: tickColor() }, grid: { color: gridColor() } }
+        }
+      })
+    });
+  } catch (e) {
+    showEmptyChart('chart-historico', e.message);
+  }
+}
+
+// ---------- Similaridade ----------
+async function renderSimilaridade() {
+  const select = document.getElementById('select-similaridade-atleta');
+  const athleteId = select.value;
+  const topN = document.getElementById('input-top-n').value || 5;
+  if (!athleteId) return;
+  destroyChart('similaridade');
+  const ctx = document.getElementById('chart-similaridade');
+
+  try {
+    const data = await api(`/atletas/${athleteId}/similaridade?top_n=${topN}`);
+    if (!data.length) {
+      showEmptyChart('chart-similaridade', 'Sem candidatos suficientes.');
+      return;
+    }
+    const nomesPorId = {};
+    ATLETAS.forEach(a => nomesPorId[a.athlete_id] = a.athlete_name || a.athlete_id);
+
+    charts.similaridade = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: data.map(d => nomesPorId[d.atleta_candidato] || d.atleta_candidato),
+        datasets: [{
+          label: 'Similaridade (0-1)',
+          data: data.map(d => d.similaridade),
+          backgroundColor: '#5eead4',
+          borderRadius: 5,
+        }]
+      },
+      options: baseChartOptions({
+        indexAxis: 'y',
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { min: 0, max: 1, ticks: { color: tickColor() }, grid: { color: gridColor() } },
+          y: { ticks: { color: tickColor() }, grid: { display: false } }
+        }
+      })
+    });
+  } catch (e) {
+    showEmptyChart('chart-similaridade', e.message);
+  }
+}
+
+function showEmptyChart(canvasId, message) {
+  const canvas = document.getElementById(canvasId);
+  const wrap = canvas.parentElement;
+  wrap.innerHTML = `<div class="empty-state">${message}</div>`;
+}
+
+// ---------- Loader principal ----------
+async function loadAll() {
+  if (!TOKEN) return;
+  setStatus('carregando...', '');
+  try {
+    const [stats, atletas] = await Promise.all([
+      api('/dashboard/stats'),
+      api('/atletas/'),
+    ]);
+    ATLETAS = atletas;
+
+    renderStatCards(stats);
+    renderClassificacaoChart(stats);
+    renderAnomaliasAtletaChart(atletas);
+    renderTabelaAtletas(atletas);
+    populateSelects(atletas);
+
+    if (atletas.length > 0) {
+      document.getElementById('select-historico-atleta').selectedIndex = 0;
+      document.getElementById('select-similaridade-atleta').selectedIndex = 0;
+      await renderRadar();
+      await renderHistorico();
+      await renderSimilaridade();
+    } else {
+      ['chart-radar', 'chart-historico', 'chart-similaridade'].forEach(id =>
+        showEmptyChart(id, 'Sem dados ainda. Envie uma planilha em POST /api/v1/upload/ e aguarde o processamento em background.'));
+    }
+
+    setStatus('dados atualizados', 'ok');
+  } catch (e) {
+    setStatus('erro: ' + e.message, 'err');
+  }
+}
+
+document.getElementById('select-historico-atleta').addEventListener('change', renderHistorico);
+document.getElementById('select-similaridade-atleta').addEventListener('change', renderSimilaridade);
+
+setStatus('aguardando login', '');
+</script>
+</body>
+</html>
