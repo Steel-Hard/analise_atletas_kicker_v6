@@ -1,7 +1,7 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "Análise Atletas API"
+    PROJECT_NAME: str = "AnÃ¡lise Atletas API"
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
 
@@ -14,7 +14,6 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440 # 24 hours
 
-    class Config:
-        env_file = ".env"
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 settings = Settings()
